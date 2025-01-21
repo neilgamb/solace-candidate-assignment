@@ -1,18 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, ChangeEvent } from "react";
 
 export default function Home() {
-  const [advocates, setAdvocates] = useState([]);
-  const [filteredAdvocates, setFilteredAdvocates] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [advocates, setAdvocates] = useState<Advocate[]>([]);
+  const [filteredAdvocates, setFilteredAdvocates] = useState<Advocate[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>("");
 
   useEffect(() => {
     console.log("fetching advocates...");
 
     fetch("/api/advocates")
       .then((response) => response.json())
-      .then((jsonResponse) => {
+      .then((jsonResponse: ApiResponse) => {
         setAdvocates(jsonResponse.data);
         setFilteredAdvocates(jsonResponse.data);
       })
@@ -21,7 +21,7 @@ export default function Home() {
       });
   }, []);
 
-  const onChange = (e) => {
+  const onChange = (e: ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
     setSearchTerm(inputValue);
 
@@ -39,11 +39,11 @@ export default function Home() {
       const matchesLastName = lastName?.toLowerCase().includes(lowerInput);
       const matchesCity = city?.toLowerCase().includes(lowerInput);
       const matchesDegree = degree?.toLowerCase().includes(lowerInput);
-      const matchesSpecialties = specialties?.some((spec) =>
+      const matchesSpecialties = specialties.some((spec) =>
         spec.toLowerCase().includes(lowerInput)
       );
       const matchesYearsOfExperience = yearsOfExperience
-        ?.toString()
+        .toString()
         .includes(lowerInput);
 
       return (
@@ -73,7 +73,7 @@ export default function Home() {
       <div>
         <p>Search</p>
         <p>
-          Searching for: <span id="search-term"></span>
+          Searching for: <span id="search-term">{searchTerm}</span>
         </p>
         <input
           style={{ border: "1px solid black" }}
@@ -97,23 +97,21 @@ export default function Home() {
           </tr>
         </thead>
         <tbody>
-          {filteredAdvocates.map((advocate, index) => {
-            return (
-              <tr key={index}>
-                <td>{advocate.firstName}</td>
-                <td>{advocate.lastName}</td>
-                <td>{advocate.city}</td>
-                <td>{advocate.degree}</td>
-                <td>
-                  {advocate.specialties.map((s, index) => (
-                    <div key={index}>{s}</div>
-                  ))}
-                </td>
-                <td>{advocate.yearsOfExperience}</td>
-                <td>{advocate.phoneNumber}</td>
-              </tr>
-            );
-          })}
+          {filteredAdvocates.map((advocate, index) => (
+            <tr key={index}>
+              <td>{advocate.firstName}</td>
+              <td>{advocate.lastName}</td>
+              <td>{advocate.city}</td>
+              <td>{advocate.degree}</td>
+              <td>
+                {advocate.specialties.map((specialty, i) => (
+                  <div key={i}>{specialty}</div>
+                ))}
+              </td>
+              <td>{advocate.yearsOfExperience}</td>
+              <td>{advocate.phoneNumber}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </main>
