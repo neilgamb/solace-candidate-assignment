@@ -66,54 +66,64 @@ export default function Home() {
   };
 
   return (
-    <main style={{ margin: "24px" }}>
-      <h1>Solace Advocates</h1>
-      <br />
-      <br />
-      <div>
-        <p>Search</p>
-        <p>
-          Searching for: <span id="search-term">{searchTerm}</span>
-        </p>
+    <main className="h-screen p-4 flex flex-col">
+      <h1 className="text-2xl text-gray-800 font-semibold">Solace Advocates</h1>
+      <div className="my-4 flex items-center gap-2 relative focus-within:ring focus-within:ring-gray-400 rounded-lg max-w-4xl">
         <input
-          style={{ border: "1px solid black" }}
+          className="flex-1 p-2 bg-gray-200 text-gray-800 placeholder-gray-400 rounded-lg focus:outline-none"
           onChange={onChange}
           value={searchTerm}
+          placeholder="Search"
         />
-        <button onClick={onClick}>Reset Search</button>
+        {searchTerm && (
+          <button
+            onClick={onClick}
+            className="px-4 py-2 transition-colors absolute right-0 rounded-r-md text-gray-400 hover:text-gray-500 font-bold"
+          >
+            ✕
+          </button>
+        )}
       </div>
-      <br />
-      <br />
-      <table>
-        <thead>
-          <tr>
-            <th>First Name</th>
-            <th>Last Name</th>
-            <th>City</th>
-            <th>Degree</th>
-            <th>Specialties</th>
-            <th>Years of Experience</th>
-            <th>Phone Number</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredAdvocates.map((advocate, index) => (
-            <tr key={index}>
-              <td>{advocate.firstName}</td>
-              <td>{advocate.lastName}</td>
-              <td>{advocate.city}</td>
-              <td>{advocate.degree}</td>
-              <td>
-                {advocate.specialties.map((specialty, i) => (
-                  <div key={i}>{specialty}</div>
-                ))}
-              </td>
-              <td>{advocate.yearsOfExperience}</td>
-              <td>{advocate.phoneNumber}</td>
+      <div className="flex-1 overflow-y-auto overflow-x-auto rounded-lg overflow-hidden no-scrollbar">
+        <table className="table-auto sm:table-fixed w-full border-collapse">
+          <thead className="sticky top-0 bg-emerald-900 text-white z-10 text-left">
+            <tr>
+              <th className="px-4 py-2">First Name</th>
+              <th className="px-4 py-2">Last Name</th>
+              <th className="px-4 py-2">City</th>
+              <th className="px-4 py-2">Degree</th>
+              <th className="px-4 py-2 w-2/5">Specialties</th>
+              <th className="px-4 py-2">Years of Experience</th>
+              <th className="px-4 py-2">Phone Number</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredAdvocates.map((advocate, index) => (
+              <tr
+                key={index}
+                className={`${
+                  index === 0 ? "" : "border-t-2"
+                } hover:bg-gray-50 hover:curor-pointer text-gray-500`}
+              >
+                <td className="px-4 py-2 align-top">{advocate.firstName}</td>
+                <td className="px-4 py-2 align-top">{advocate.lastName}</td>
+                <td className="px-4 py-2 align-top">{advocate.city}</td>
+                <td className="px-4 py-2 align-top">{advocate.degree}</td>
+                <td className="px-4 py-2 align-top">
+                  {Array.isArray(advocate.specialties) &&
+                    advocate.specialties.map((s, sIndex) => (
+                      <li key={sIndex}>{s}</li>
+                    ))}
+                </td>
+                <td className="px-4 py-2 align-top">
+                  {advocate.yearsOfExperience}
+                </td>
+                <td className="px-4 py-2 align-top">{advocate.phoneNumber}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </main>
   );
 }
