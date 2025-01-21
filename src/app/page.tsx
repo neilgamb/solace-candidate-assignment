@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, ChangeEvent } from "react";
-import { parsePhoneNumberFromString } from "libphonenumber-js";
 import HighlightedText from "@/components/HighlightedText";
+import { formatPhoneNumber } from "@/util/formatPhone";
 
 export default function Home() {
   const [advocates, setAdvocates] = useState<Advocate[]>([]);
@@ -53,15 +53,6 @@ export default function Home() {
     console.log("Resetting search...");
     setSearchTerm("");
     setFilteredAdvocates(advocates);
-  };
-
-  const formatPhoneNumber = (num: number): string => {
-    const phoneString = num.toString();
-    const parsed = parsePhoneNumberFromString(phoneString, "US");
-    if (parsed) {
-      return parsed.formatNational();
-    }
-    return phoneString;
   };
 
   return (
