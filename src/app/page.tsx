@@ -1,7 +1,8 @@
 "use client";
 
-import HighlightedText from "@/components/HighlightedText";
 import { useEffect, useState, ChangeEvent } from "react";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+import HighlightedText from "@/components/HighlightedText";
 
 export default function Home() {
   const [advocates, setAdvocates] = useState<Advocate[]>([]);
@@ -10,7 +11,6 @@ export default function Home() {
 
   useEffect(() => {
     console.log("fetching advocates...");
-
     fetch("/api/advocates")
       .then((response) => response.json())
       .then((jsonResponse: ApiResponse) => {
@@ -27,14 +27,7 @@ export default function Home() {
     setSearchTerm(inputValue);
 
     const filtered = advocates.filter((advocate) => {
-      const {
-        firstName,
-        lastName,
-        city,
-        degree,
-        specialties,
-        yearsOfExperience,
-      } = advocate;
+      const { firstName, lastName, city, degree, specialties } = advocate;
       const lowerInput = inputValue.toLowerCase();
       const matchesFirstName = firstName?.toLowerCase().includes(lowerInput);
       const matchesLastName = lastName?.toLowerCase().includes(lowerInput);
@@ -43,17 +36,13 @@ export default function Home() {
       const matchesSpecialties = specialties.some((spec) =>
         spec.toLowerCase().includes(lowerInput)
       );
-      const matchesYearsOfExperience = yearsOfExperience
-        .toString()
-        .includes(lowerInput);
 
       return (
         matchesFirstName ||
         matchesLastName ||
         matchesCity ||
         matchesDegree ||
-        matchesSpecialties ||
-        matchesYearsOfExperience
+        matchesSpecialties
       );
     });
 
@@ -66,6 +55,15 @@ export default function Home() {
     setFilteredAdvocates(advocates);
   };
 
+  const formatPhoneNumber = (num: number): string => {
+    const phoneString = num.toString();
+    const parsed = parsePhoneNumberFromString(phoneString, "US");
+    if (parsed) {
+      return parsed.formatNational();
+    }
+    return phoneString;
+  };
+
   return (
     <main className="h-screen p-4 flex flex-col">
       <h1 className="text-2xl text-gray-800 font-semibold">Solace Advocates</h1>
@@ -74,7 +72,7 @@ export default function Home() {
           className="flex-1 p-2 bg-gray-200 text-gray-800 placeholder-gray-400 rounded-lg focus:outline-none"
           onChange={onChange}
           value={searchTerm}
-          placeholder="Search"
+          placeholder="Search by name, city, degree or specialty"
         />
         {searchTerm && (
           <button
@@ -135,7 +133,9 @@ export default function Home() {
                 <td className="px-4 py-2 align-top">
                   {advocate.yearsOfExperience}
                 </td>
-                <td className="px-4 py-2 align-top">{advocate.phoneNumber}</td>
+                <td className="px-4 py-2 align-top">
+                  {formatPhoneNumber(advocate.phoneNumber)}
+                </td>
               </tr>
             ))}
           </tbody>
