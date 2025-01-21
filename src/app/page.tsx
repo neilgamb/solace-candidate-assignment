@@ -1,5 +1,6 @@
 "use client";
 
+import HighlightedText from "@/components/HighlightedText";
 import { useEffect, useState, ChangeEvent } from "react";
 
 export default function Home() {
@@ -105,14 +106,30 @@ export default function Home() {
                   index === 0 ? "" : "border-t-2"
                 } hover:bg-gray-50 hover:curor-pointer text-gray-500`}
               >
-                <td className="px-4 py-2 align-top">{advocate.firstName}</td>
-                <td className="px-4 py-2 align-top">{advocate.lastName}</td>
-                <td className="px-4 py-2 align-top">{advocate.city}</td>
-                <td className="px-4 py-2 align-top">{advocate.degree}</td>
+                <td className="px-4 py-2 align-top">
+                  <HighlightedText
+                    text={advocate.firstName}
+                    query={searchTerm}
+                  />
+                </td>
+                <td className="px-4 py-2 align-top">
+                  <HighlightedText
+                    text={advocate.lastName}
+                    query={searchTerm}
+                  />
+                </td>
+                <td className="px-4 py-2 align-top">
+                  <HighlightedText text={advocate.city} query={searchTerm} />
+                </td>
+                <td className="px-4 py-2 align-top">
+                  <HighlightedText text={advocate.degree} query={searchTerm} />
+                </td>
                 <td className="px-4 py-2 align-top">
                   {Array.isArray(advocate.specialties) &&
                     advocate.specialties.map((s, sIndex) => (
-                      <li key={`${advocate.id}-specialty-${sIndex}`}>{s}</li>
+                      <li key={`${advocate.id}-specialty-${sIndex}`}>
+                        <HighlightedText text={s} query={searchTerm} />
+                      </li>
                     ))}
                 </td>
                 <td className="px-4 py-2 align-top">
