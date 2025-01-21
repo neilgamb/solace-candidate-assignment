@@ -100,7 +100,7 @@ export default function Home() {
           <tbody>
             {filteredAdvocates.map((advocate, index) => (
               <tr
-                key={index}
+                key={advocate.id}
                 className={`${
                   index === 0 ? "" : "border-t-2"
                 } hover:bg-gray-50 hover:curor-pointer text-gray-500`}
@@ -112,7 +112,7 @@ export default function Home() {
                 <td className="px-4 py-2 align-top">
                   {Array.isArray(advocate.specialties) &&
                     advocate.specialties.map((s, sIndex) => (
-                      <li key={sIndex}>{s}</li>
+                      <li key={`${advocate.id}-specialty-${sIndex}`}>{s}</li>
                     ))}
                 </td>
                 <td className="px-4 py-2 align-top">
