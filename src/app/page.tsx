@@ -1,56 +1,93 @@
 "use client";
 
-import { useEffect, useState, ChangeEvent, useRef } from "react";
+import { useEffect, useState, useRef, useMemo, ChangeEvent } from "react";
+import { debounce } from "lodash";
 import HighlightedText from "@/components/HighlightedText";
 import { formatPhoneNumber } from "@/util/formatPhone";
 
-// A simple custom hook to debounce any changing value
-function useDebounce(value: string, delay = 300) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(handler);
-  }, [value, delay]);
-
-  return debouncedValue;
-}
-
 export default function Home() {
-  // State to store the full advocate list, the filtered list, and the current search term
+  /**
+   * ---------------------------
+   *      State Declarations
+   * ---------------------------
+   */
+
+  // Infinite scroll + general
   const [advocates, setAdvocates] = useState<Advocate[]>([]);
-  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [isScrolling, setIsScrolling] = useState(false);
 
-  const [page, setPage] = useState<number>(1);
-  const [limit] = useState<number>(10); // or any default page size
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [hasMore, setHasMore] = useState<boolean>(true);
+  // Search
+  // `typedValue`: what the user is typing in the search box, updated on every keystroke
+  // `searchTerm`: the debounced "official" term used for fetching
+  const [typedValue, setTypedValue] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
+  // Intersection Observer ref
   const observerRef = useRef<IntersectionObserver | null>(null);
+  // Table scroll ref
+  const scrollRef = useRef<HTMLTableElement | null>(null);
 
-  // The debounced version of the search input
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  /**
+   * --------------------------------------
+   *   Debounce with Lodash
+   * --------------------------------------
+   * We create a memoized debounced function that updates `searchTerm`
+   * after 300ms of no further changes. Only the "trailing" call is used.
+   */
+  const debouncedUpdateSearchTerm = useMemo(
+    () =>
+      debounce(
+        (value: string) => {
+          setSearchTerm(value);
+        },
+        50,
+        { leading: true, trailing: true }
+      ),
+    []
+  );
 
-  // Whenever the *debounced* search term changes, reset pagination
+  // Cleanup any pending debounced calls on unmount/re-render
+  useEffect(() => {
+    return () => {
+      debouncedUpdateSearchTerm.cancel();
+    };
+  }, [debouncedUpdateSearchTerm]);
+
+  /**
+   * ---------------------------
+   *       Effect: Reset
+   * ---------------------------
+   * Whenever the fully debounced `searchTerm` changes,
+   * reset pagination and clear the list (so each new search starts fresh).
+   */
   useEffect(() => {
     setPage(1);
     setHasMore(true);
-    setAdvocates([]); // Clear out old data
-  }, [debouncedSearchTerm]);
+    setAdvocates([]);
+  }, [searchTerm]);
 
+  /**
+   * ---------------------------
+   *     Fetch Advocates
+   * ---------------------------
+   * Paginated + search-based request, merging new data into `advocates`.
+   */
   const fetchAdvocates = async () => {
     setIsLoading(true);
-
     try {
-      // Include `search` in the query params
-      const res = await fetch(
-        `/api/advocates?page=${page}&limit=${limit}&search=${debouncedSearchTerm}`
-      );
+      const query = `/api/advocates?page=${
+        searchTerm ? 1 : page
+      }&limit=${limit}&search=${searchTerm}`;
+      const res = await fetch(query);
       const json = await res.json();
 
       console.log("Fetched data:", json);
 
-      // Append the new page of data
+      // Append to existing array
       setAdvocates((prev) => [...prev, ...json.data]);
 
       // If we're on the last page, stop fetching
@@ -59,27 +96,35 @@ export default function Home() {
       }
     } catch (err) {
       console.error("Fetch error:", err);
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
-  // Fetch new page when `page` or `debouncedSearchTerm` changes
+  /**
+   * ---------------------------
+   *   Effect: Fetch on page or searchTerm change
+   * ---------------------------
+   */
   useEffect(() => {
     if (hasMore) {
       fetchAdvocates();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, debouncedSearchTerm]);
+  }, [page, searchTerm]);
 
-  // Intersection Observer: watch the sentinel for infinite scroll
+  /**
+   * ---------------------------
+   *   Intersection Observer
+   * ---------------------------
+   * Increments `page` when sentinel is visible (infinite scroll).
+   */
   useEffect(() => {
     if (observerRef.current) observerRef.current.disconnect();
 
     observerRef.current = new IntersectionObserver((entries) => {
-      const first = entries[0];
-      if (first.isIntersecting && !isLoading && hasMore) {
-        // Move to the next page
+      const firstEntry = entries[0];
+      if (firstEntry.isIntersecting && !isLoading && hasMore) {
         setPage((prev) => prev + 1);
       }
     });
@@ -94,44 +139,81 @@ export default function Home() {
     };
   }, [hasMore, isLoading]);
 
-  // For the search input field
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
+  useEffect(() => {
+    // detect if table is scrolling
+    const table = scrollRef.current;
+    if (!table) return;
+
+    table.addEventListener("scroll", () => {
+      setIsScrolling(true);
+    });
+
+    table.addEventListener("scrollend", () => {
+      setIsScrolling(false);
+    });
+
+    return () => {
+      table.removeEventListener("scroll", () => {
+        setIsScrolling(false);
+      });
+
+      table.removeEventListener("scrollend", () => {
+        setIsScrolling(false);
+      });
+    };
+  }, []);
+
+  /**
+   * ---------------------------
+   *   Handlers for Input
+   * ---------------------------
+   */
+  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    // Immediately update typedValue for the UI
+    setTypedValue(val);
+    // Trigger the debounced function, which will update searchTerm after 300ms
+    debouncedUpdateSearchTerm(val);
   };
 
-  // Optional: a clear button
   const handleClearSearch = () => {
-    setSearchTerm("");
+    setTypedValue("");
+    setSearchTerm(""); // Force immediate reset
   };
 
+  /**
+   * ---------------------------
+   *      Render
+   * ---------------------------
+   */
   return (
     <main className="h-screen p-4 pb-0 flex flex-col">
-      {/* Main title */}
       <h1 className="text-2xl text-gray-800 font-semibold">Solace Advocates</h1>
 
-      {/* Search input container */}
+      {/* Search Input */}
       <div className="my-4 flex items-center gap-2 relative focus-within:ring focus-within:ring-gray-400 rounded-lg max-w-4xl">
         <input
           className="flex-1 p-2 bg-gray-200 text-gray-800 placeholder-gray-400 rounded-lg focus:outline-none"
-          onChange={handleSearchChange}
-          value={searchTerm}
           placeholder="Search by name, city, degree or specialty"
+          value={typedValue}
+          onChange={handleSearchChange}
         />
-        {/* Clear button (shown only when there's something to clear) */}
-        {searchTerm && (
+        {!!typedValue && (
           <button
             onClick={handleClearSearch}
-            className="px-4 py-2 transition-colors absolute right-0 rounded-r-md text-gray-400 hover:text-gray-500 font-bold"
+            className="px-4 py-2 absolute right-0 rounded-r-md text-gray-400 hover:text-gray-500 font-bold"
           >
             ✕
           </button>
         )}
       </div>
 
-      {/* Table container with scroll overflow */}
-      <div className="flex-1 overflow-y-auto overflow-x-auto rounded-lg overflow-hidden no-scrollbar relative">
+      {/* Table Container */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto overflow-x-auto rounded-lg overflow-hidden no-scrollbar relative"
+      >
         <table className="table-auto sm:table-fixed w-full border-collapse">
-          {/* Table Header */}
           <thead className="sticky top-0 bg-emerald-900 text-white z-10 text-left">
             <tr>
               <th className="px-4 py-2">First Name</th>
@@ -144,43 +226,38 @@ export default function Home() {
             </tr>
           </thead>
 
-          {/* Table Body (dynamic rows based on filtered advocates) */}
           <tbody>
             {advocates.map((advocate, index) => (
               <tr
                 key={advocate.id}
                 className={`${
                   index === 0 ? "" : "border-t-2"
-                } hover:bg-gray-50 hover:curor-pointer text-gray-500`}
+                } hover:bg-gray-50 text-gray-500`}
               >
-                {/* Each cell contains data from the advocate object. 
-                    HighlightedText is used to visually highlight matches. */}
                 <td className="px-4 py-2 align-top">
                   <HighlightedText
                     text={advocate.firstName}
-                    query={searchTerm}
+                    query={typedValue}
                   />
                 </td>
                 <td className="px-4 py-2 align-top">
                   <HighlightedText
                     text={advocate.lastName}
-                    query={searchTerm}
+                    query={typedValue}
                   />
                 </td>
                 <td className="px-4 py-2 align-top">
-                  <HighlightedText text={advocate.city} query={searchTerm} />
+                  <HighlightedText text={advocate.city} query={typedValue} />
                 </td>
                 <td className="px-4 py-2 align-top">
-                  <HighlightedText text={advocate.degree} query={searchTerm} />
+                  <HighlightedText text={advocate.degree} query={typedValue} />
                 </td>
                 <td className="px-4 py-2 align-top">
-                  {/* Render each specialty in a list item */}
-                  {Array.isArray(advocate.specialties) &&
-                    advocate.specialties.map((specialty, sIndex) => (
-                      <li key={`${advocate.id}-specialty-${sIndex}`}>
-                        <HighlightedText text={specialty} query={searchTerm} />
-                      </li>
-                    ))}
+                  {advocate.specialties?.map((spec, sIndex) => (
+                    <li key={`${advocate.id}-spec-${sIndex}`}>
+                      <HighlightedText text={spec} query={typedValue} />
+                    </li>
+                  ))}
                 </td>
                 <td className="px-4 py-2 align-top">
                   {advocate.yearsOfExperience}
@@ -193,12 +270,14 @@ export default function Home() {
           </tbody>
         </table>
 
-        {!searchTerm && (
-          <div className="sticky inset-x-0 bottom-0 left-0 right-0 flex-1 text-center p-2 bg-white text-gray-400">
+        {/* Show "Scroll to load more" only if no active typedValue */}
+        {!typedValue && !isScrolling && (
+          <div className="sticky inset-x-0 bottom-0 flex-1 text-center p-2 bg-white text-gray-400">
             Scroll to load more
           </div>
         )}
-        {/* Our sentinel element to detect when user is near bottom */}
+
+        {/* Sentinel for Intersection Observer */}
         <div id="sentinel"></div>
       </div>
     </main>
