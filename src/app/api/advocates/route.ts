@@ -4,35 +4,30 @@ import db from "../../../db";
 import { advocates } from "../../../db/schema";
 
 export async function GET(request: NextRequest) {
-  // 1) Parse query parameters from the request URL
   const { searchParams } = new URL(request.url);
 
-  let page = parseInt(searchParams.get("page") ?? "1", 10);
-  let limit = parseInt(searchParams.get("limit") ?? "10", 10);
-
-  // Enforce minimum values
-  if (page < 1) page = 1;
-  if (limit < 1) limit = 10;
-
+  const page = parseInt(searchParams.get("page") ?? "1", 10);
+  const limit = parseInt(searchParams.get("limit") ?? "10", 10);
   const offset = (page - 1) * limit;
 
-  // 2) Count total records (for pagination info)
+  // 1) total count
   const [countResult] = await db
-    .select({ count: sql<number>`count(*)` })
+    .select({
+      total: sql`COUNT(*)`.as("total"),
+    })
     .from(advocates);
 
-  const totalItems = countResult.count;
+  const totalItems = Number(countResult.total);
 
-  // 3) Fetch paginated records
+  // 2) page data
   const data = await db.select().from(advocates).limit(limit).offset(offset);
 
-  // 4) Return data + pagination details
   return NextResponse.json({
     data,
     pagination: {
-      totalItems,
       page,
       limit,
+      totalItems,
       totalPages: Math.ceil(totalItems / limit),
     },
   });

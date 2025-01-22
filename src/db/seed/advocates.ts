@@ -1,7 +1,4 @@
-// src/db/seed/advocates.ts
-
-import { faker } from "@faker-js/faker"; // (Install: npm i @faker-js/faker)
-import { advocates } from "../schema";
+import { faker } from "@faker-js/faker";
 
 const specialties = [
   "Bipolar",
@@ -30,20 +27,6 @@ const specialties = [
   "Schizophrenia and psychotic disorders",
   "Learning disorders",
   "Domestic abuse",
-];
-
-// OPTIONAL: Existing “fixed” seed data (if you still want to keep it around)
-const advocateData = [
-  {
-    firstName: "John",
-    lastName: "Doe",
-    city: "New York",
-    degree: "MD",
-    specialties: ["Bipolar", "Trauma & PTSD"],
-    yearsOfExperience: 10,
-    phoneNumber: 5551234567,
-  },
-  // ... etc ...
 ];
 
 /**
@@ -77,5 +60,3 @@ export function generateAdvocates(count: number) {
 
   return records;
 }
-
-export { advocateData };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, ChangeEvent } from "react";
+import { useEffect, useState, ChangeEvent, useRef } from "react";
 import HighlightedText from "@/components/HighlightedText";
 import { formatPhoneNumber } from "@/util/formatPhone";
 
@@ -10,20 +10,58 @@ export default function Home() {
   const [filteredAdvocates, setFilteredAdvocates] = useState<Advocate[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
 
-  // useEffect: Fetch data from the '/api/advocates' endpoint on the first render
+  const [page, setPage] = useState<number>(1);
+  const [limit] = useState<number>(10); // or any default page size
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [hasMore, setHasMore] = useState<boolean>(true);
+
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  const fetchAdvocates = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/advocates?page=${page}&limit=${limit}`);
+      const json = await res.json();
+      console.log("New data fetched:", json.data);
+
+      setAdvocates((prev) => [...prev, ...json.data]);
+      setFilteredAdvocates((prev) => [...prev, ...json.data]);
+
+      // If we're on the last page, stop fetching
+      if (json.pagination.page >= json.pagination.totalPages) {
+        setHasMore(false);
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+    }
+    setIsLoading(false);
+  };
+
   useEffect(() => {
-    console.log("fetching advocates...");
-    fetch("/api/advocates")
-      .then((response) => response.json())
-      .then((jsonResponse: ApiResponse) => {
-        // Update both the primary and filtered lists of advocates with the fetched data
-        setAdvocates(jsonResponse.data);
-        setFilteredAdvocates(jsonResponse.data);
-      })
-      .catch((err) => {
-        console.error("Error fetching advocates:", err);
-      });
-  }, []);
+    if (hasMore) fetchAdvocates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
+
+  // Set up Intersection Observer for the sentinel at the bottom
+  useEffect(() => {
+    if (observerRef.current) observerRef.current.disconnect();
+
+    observerRef.current = new IntersectionObserver((entries) => {
+      const first = entries[0];
+      if (first.isIntersecting && !isLoading && hasMore) {
+        setPage((prev) => prev + 1);
+      }
+    });
+
+    const sentinel = document.getElementById("sentinel");
+    if (sentinel) observerRef.current.observe(sentinel);
+
+    return () => {
+      if (observerRef.current && sentinel) {
+        observerRef.current.unobserve(sentinel);
+      }
+    };
+  }, [hasMore, isLoading]);
 
   // Event handler for input changes in the search field
   const onChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -66,7 +104,7 @@ export default function Home() {
   };
 
   return (
-    <main className="h-screen p-4 flex flex-col">
+    <main className="h-screen p-4 pb-0 flex flex-col">
       {/* Main title */}
       <h1 className="text-2xl text-gray-800 font-semibold">Solace Advocates</h1>
 
@@ -90,7 +128,7 @@ export default function Home() {
       </div>
 
       {/* Table container with scroll overflow */}
-      <div className="flex-1 overflow-y-auto overflow-x-auto rounded-lg overflow-hidden no-scrollbar">
+      <div className="flex-1 overflow-y-auto overflow-x-auto rounded-lg overflow-hidden no-scrollbar relative">
         <table className="table-auto sm:table-fixed w-full border-collapse">
           {/* Table Header */}
           <thead className="sticky top-0 bg-emerald-900 text-white z-10 text-left">
@@ -153,6 +191,12 @@ export default function Home() {
             ))}
           </tbody>
         </table>
+
+        <div className="sticky inset-x-0 bottom-0 left-0 right-0 flex-1 text-center p-2 bg-white text-gray-400">
+          Scroll to load more
+        </div>
+        {/* Our sentinel element to detect when user is near bottom */}
+        <div id="sentinel"></div>
       </div>
     </main>
   );
