@@ -10,17 +10,48 @@ export async function GET(request: NextRequest) {
   const limit = parseInt(searchParams.get("limit") ?? "10", 10);
   const offset = (page - 1) * limit;
 
-  // 1) total count
-  const [countResult] = await db
-    .select({
-      total: sql`COUNT(*)`.as("total"),
-    })
+  const searchTerm = searchParams.get("search") ?? "";
+
+  // We'll build a dynamic WHERE clause. If searchTerm is empty,
+  // we won't filter; otherwise, we'll do OR matching on multiple columns.
+  // For specialties (JSON), we can do `::text ILIKE '%term%'` to search.
+  let whereClause = sql``; // empty by default
+
+  if (searchTerm) {
+    const lowerSearch = `%${searchTerm.toLowerCase()}%`;
+    whereClause = sql`
+      (
+        lower(${advocates.firstName}) LIKE ${lowerSearch}
+        OR lower(${advocates.lastName}) LIKE ${lowerSearch}
+        OR lower(${advocates.city}) LIKE ${lowerSearch}
+        OR lower(${advocates.degree}) LIKE ${lowerSearch}
+        OR lower(${advocates.specialties}::text) LIKE ${lowerSearch}
+      )
+    `;
+  }
+
+  // 1) Count total with potential WHERE
+  // Drizzle doesn't automatically chain `.where(...)` from raw SQL easily,
+  // so we can do a sub-query approach or inline raw SQL.
+  const countQuery = db
+    .select({ total: sql<number>`count(*)` })
     .from(advocates);
 
-  const totalItems = Number(countResult.total);
+  if (searchTerm) {
+    countQuery.where(whereClause);
+  }
 
-  // 2) page data
-  const data = await db.select().from(advocates).limit(limit).offset(offset);
+  const [countResult] = await countQuery;
+  const totalItems = Number(countResult?.total ?? 0);
+
+  // 2) Fetch the page data with the same WHERE, plus limit/offset
+  const dataQuery = db.select().from(advocates).limit(limit).offset(offset);
+
+  if (searchTerm) {
+    dataQuery.where(whereClause);
+  }
+
+  const data = await dataQuery;
 
   return NextResponse.json({
     data,

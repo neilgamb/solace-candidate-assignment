@@ -4,10 +4,21 @@ import { useEffect, useState, ChangeEvent, useRef } from "react";
 import HighlightedText from "@/components/HighlightedText";
 import { formatPhoneNumber } from "@/util/formatPhone";
 
+// A simple custom hook to debounce any changing value
+function useDebounce(value: string, delay = 300) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 export default function Home() {
   // State to store the full advocate list, the filtered list, and the current search term
   const [advocates, setAdvocates] = useState<Advocate[]>([]);
-  const [filteredAdvocates, setFilteredAdvocates] = useState<Advocate[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
 
   const [page, setPage] = useState<number>(1);
@@ -17,15 +28,30 @@ export default function Home() {
 
   const observerRef = useRef<IntersectionObserver | null>(null);
 
+  // The debounced version of the search input
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  // Whenever the *debounced* search term changes, reset pagination
+  useEffect(() => {
+    setPage(1);
+    setHasMore(true);
+    setAdvocates([]); // Clear out old data
+  }, [debouncedSearchTerm]);
+
   const fetchAdvocates = async () => {
     setIsLoading(true);
-    try {
-      const res = await fetch(`/api/advocates?page=${page}&limit=${limit}`);
-      const json = await res.json();
-      console.log("New data fetched:", json.data);
 
+    try {
+      // Include `search` in the query params
+      const res = await fetch(
+        `/api/advocates?page=${page}&limit=${limit}&search=${debouncedSearchTerm}`
+      );
+      const json = await res.json();
+
+      console.log("Fetched data:", json);
+
+      // Append the new page of data
       setAdvocates((prev) => [...prev, ...json.data]);
-      setFilteredAdvocates((prev) => [...prev, ...json.data]);
 
       // If we're on the last page, stop fetching
       if (json.pagination.page >= json.pagination.totalPages) {
@@ -34,21 +60,26 @@ export default function Home() {
     } catch (err) {
       console.error("Fetch error:", err);
     }
+
     setIsLoading(false);
   };
 
+  // Fetch new page when `page` or `debouncedSearchTerm` changes
   useEffect(() => {
-    if (hasMore) fetchAdvocates();
+    if (hasMore) {
+      fetchAdvocates();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, debouncedSearchTerm]);
 
-  // Set up Intersection Observer for the sentinel at the bottom
+  // Intersection Observer: watch the sentinel for infinite scroll
   useEffect(() => {
     if (observerRef.current) observerRef.current.disconnect();
 
     observerRef.current = new IntersectionObserver((entries) => {
       const first = entries[0];
       if (first.isIntersecting && !isLoading && hasMore) {
+        // Move to the next page
         setPage((prev) => prev + 1);
       }
     });
@@ -63,44 +94,14 @@ export default function Home() {
     };
   }, [hasMore, isLoading]);
 
-  // Event handler for input changes in the search field
-  const onChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value;
-    setSearchTerm(inputValue);
-
-    // Filter the advocates list based on the search term
-    const filtered = advocates.filter((advocate) => {
-      const { firstName, lastName, city, degree, specialties } = advocate;
-      const lowerInput = inputValue.toLowerCase();
-
-      // Check if the search term is included in any of these properties
-      const matchesFirstName = firstName.toLowerCase().includes(lowerInput);
-      const matchesLastName = lastName.toLowerCase().includes(lowerInput);
-      const matchesCity = city.toLowerCase().includes(lowerInput);
-      const matchesDegree = degree.toLowerCase().includes(lowerInput);
-      const matchesSpecialties = specialties.some((spec) =>
-        spec.toLowerCase().includes(lowerInput)
-      );
-
-      // Return true if any match is found
-      return (
-        matchesFirstName ||
-        matchesLastName ||
-        matchesCity ||
-        matchesDegree ||
-        matchesSpecialties
-      );
-    });
-
-    // Update the filtered list to display only the matches
-    setFilteredAdvocates(filtered);
+  // For the search input field
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
   };
 
-  // Event handler to clear the search term and reset the filtered list
-  const onClick = () => {
-    console.log("Resetting search...");
+  // Optional: a clear button
+  const handleClearSearch = () => {
     setSearchTerm("");
-    setFilteredAdvocates(advocates);
   };
 
   return (
@@ -112,14 +113,14 @@ export default function Home() {
       <div className="my-4 flex items-center gap-2 relative focus-within:ring focus-within:ring-gray-400 rounded-lg max-w-4xl">
         <input
           className="flex-1 p-2 bg-gray-200 text-gray-800 placeholder-gray-400 rounded-lg focus:outline-none"
-          onChange={onChange}
+          onChange={handleSearchChange}
           value={searchTerm}
           placeholder="Search by name, city, degree or specialty"
         />
         {/* Clear button (shown only when there's something to clear) */}
         {searchTerm && (
           <button
-            onClick={onClick}
+            onClick={handleClearSearch}
             className="px-4 py-2 transition-colors absolute right-0 rounded-r-md text-gray-400 hover:text-gray-500 font-bold"
           >
             ✕
@@ -145,7 +146,7 @@ export default function Home() {
 
           {/* Table Body (dynamic rows based on filtered advocates) */}
           <tbody>
-            {filteredAdvocates.map((advocate, index) => (
+            {advocates.map((advocate, index) => (
               <tr
                 key={advocate.id}
                 className={`${
@@ -192,9 +193,11 @@ export default function Home() {
           </tbody>
         </table>
 
-        <div className="sticky inset-x-0 bottom-0 left-0 right-0 flex-1 text-center p-2 bg-white text-gray-400">
-          Scroll to load more
-        </div>
+        {!searchTerm && (
+          <div className="sticky inset-x-0 bottom-0 left-0 right-0 flex-1 text-center p-2 bg-white text-gray-400">
+            Scroll to load more
+          </div>
+        )}
         {/* Our sentinel element to detect when user is near bottom */}
         <div id="sentinel"></div>
       </div>
