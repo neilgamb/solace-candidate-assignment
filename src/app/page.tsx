@@ -140,8 +140,13 @@ export default function Home() {
     };
   }, [hasMore, isLoading]);
 
+  /**
+   * ---------------------------
+   *  Effect: Detect Table Scroll
+   * ---------------------------
+   * This effect listens for scroll events on the table and sets `isScrolling` to true or false.
+   */
   useEffect(() => {
-    // detect if table is scrolling
     const table = scrollRef.current;
     if (!table) return;
 
@@ -273,8 +278,8 @@ export default function Home() {
 
         {/* Show "Scroll to load more" only if no active typedValue */}
         {!typedValue && !isScrolling && hasMore && (
-          <div className="sticky inset-x-0 bottom-0 flex-1 text-center p-2 bg-white text-gray-400">
-            Scroll to load more
+          <div className="sticky inset-x-0 bottom-0 flex-1 text-center p-2 bg-white text-green-600">
+            Scroll to load more ↓↓
           </div>
         )}
 
