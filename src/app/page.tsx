@@ -45,7 +45,7 @@ export default function Home() {
           setSearchTerm(value);
         },
         50,
-        { leading: true, trailing: true }
+        { leading: false, trailing: true }
       ),
     []
   );
@@ -124,6 +124,7 @@ export default function Home() {
 
     observerRef.current = new IntersectionObserver((entries) => {
       const firstEntry = entries[0];
+      console.log("Intersection Observer:", firstEntry);
       if (firstEntry.isIntersecting && !isLoading && hasMore) {
         setPage((prev) => prev + 1);
       }
@@ -271,14 +272,14 @@ export default function Home() {
         </table>
 
         {/* Show "Scroll to load more" only if no active typedValue */}
-        {!typedValue && !isScrolling && (
+        {!typedValue && !isScrolling && hasMore && (
           <div className="sticky inset-x-0 bottom-0 flex-1 text-center p-2 bg-white text-gray-400">
             Scroll to load more
           </div>
         )}
 
         {/* Sentinel for Intersection Observer */}
-        <div id="sentinel"></div>
+        <div id="sentinel" className="h-1"></div>
       </div>
     </main>
   );
