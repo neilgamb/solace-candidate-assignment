@@ -1,4 +1,6 @@
-import db from "..";
+// src/db/seed/advocates.ts
+
+import { faker } from "@faker-js/faker"; // (Install: npm i @faker-js/faker)
 import { advocates } from "../schema";
 
 const specialties = [
@@ -30,158 +32,50 @@ const specialties = [
   "Domestic abuse",
 ];
 
-const randomSpecialty = () => {
-  const random1 = Math.floor(Math.random() * 24);
-  const random2 = Math.floor(Math.random() * (24 - random1)) + random1 + 1;
-
-  return [random1, random2];
-};
-
+// OPTIONAL: Existing “fixed” seed data (if you still want to keep it around)
 const advocateData = [
   {
     firstName: "John",
     lastName: "Doe",
     city: "New York",
     degree: "MD",
-    specialties: specialties.slice(...randomSpecialty()),
+    specialties: ["Bipolar", "Trauma & PTSD"],
     yearsOfExperience: 10,
     phoneNumber: 5551234567,
   },
-  {
-    firstName: "Jane",
-    lastName: "Smith",
-    city: "Los Angeles",
-    degree: "PhD",
-    specialties: specialties.slice(...randomSpecialty()),
-    yearsOfExperience: 8,
-    phoneNumber: 5559876543,
-  },
-  {
-    firstName: "Alice",
-    lastName: "Johnson",
-    city: "Chicago",
-    degree: "MSW",
-    specialties: specialties.slice(...randomSpecialty()),
-    yearsOfExperience: 5,
-    phoneNumber: 5554567890,
-  },
-  {
-    firstName: "Michael",
-    lastName: "Brown",
-    city: "Houston",
-    degree: "MD",
-    specialties: specialties.slice(...randomSpecialty()),
-    yearsOfExperience: 12,
-    phoneNumber: 5556543210,
-  },
-  {
-    firstName: "Emily",
-    lastName: "Davis",
-    city: "Phoenix",
-    degree: "PhD",
-    specialties: specialties.slice(...randomSpecialty()),
-    yearsOfExperience: 7,
-    phoneNumber: 5553210987,
-  },
-  {
-    firstName: "Chris",
-    lastName: "Martinez",
-    city: "Philadelphia",
-    degree: "MSW",
-    specialties: specialties.slice(...randomSpecialty()),
-    yearsOfExperience: 9,
-    phoneNumber: 5557890123,
-  },
-  {
-    firstName: "Jessica",
-    lastName: "Taylor",
-    city: "San Antonio",
-    degree: "MD",
-    specialties: specialties.slice(...randomSpecialty()),
-    yearsOfExperience: 11,
-    phoneNumber: 5554561234,
-  },
-  {
-    firstName: "David",
-    lastName: "Harris",
-    city: "San Diego",
-    degree: "PhD",
-    specialties: specialties.slice(...randomSpecialty()),
-    yearsOfExperience: 6,
-    phoneNumber: 5557896543,
-  },
-  {
-    firstName: "Laura",
-    lastName: "Clark",
-    city: "Dallas",
-    degree: "MSW",
-    specialties: specialties.slice(...randomSpecialty()),
-    yearsOfExperience: 4,
-    phoneNumber: 5550123456,
-  },
-  {
-    firstName: "Daniel",
-    lastName: "Lewis",
-    city: "San Jose",
-    degree: "MD",
-    specialties: specialties.slice(...randomSpecialty()),
-    yearsOfExperience: 13,
-    phoneNumber: 5553217654,
-  },
-  {
-    firstName: "Sarah",
-    lastName: "Lee",
-    city: "Austin",
-    degree: "PhD",
-    specialties: specialties.slice(...randomSpecialty()),
-    yearsOfExperience: 10,
-    phoneNumber: 5551238765,
-  },
-  {
-    firstName: "James",
-    lastName: "King",
-    city: "Jacksonville",
-    degree: "MSW",
-    specialties: specialties.slice(...randomSpecialty()),
-    yearsOfExperience: 5,
-    phoneNumber: 5556540987,
-  },
-  {
-    firstName: "Megan",
-    lastName: "Green",
-    city: "San Francisco",
-    degree: "MD",
-    specialties: specialties.slice(...randomSpecialty()),
-    yearsOfExperience: 14,
-    phoneNumber: 5559873456,
-  },
-  {
-    firstName: "Joshua",
-    lastName: "Walker",
-    city: "Columbus",
-    degree: "PhD",
-    specialties: specialties.slice(...randomSpecialty()),
-    yearsOfExperience: 9,
-    phoneNumber: 5556781234,
-  },
-  {
-    firstName: "Amanda",
-    lastName: "Hall",
-    city: "Fort Worth",
-    degree: "MSW",
-    specialties: specialties.slice(...randomSpecialty()),
-    yearsOfExperience: 3,
-    phoneNumber: 5559872345,
-  },
-  {
-    firstName: "Kevin",
-    lastName: "Young",
-    city: "Indianapolis",
-    degree: "MD",
-    specialties: specialties.slice(...randomSpecialty()),
-    yearsOfExperience: 15,
-    phoneNumber: 5552345678,
-  },
+  // ... etc ...
 ];
+
+/**
+ * Helper to pick a random subset of specialties from the above array
+ */
+function getRandomSpecialties() {
+  // Decide how many specialties the advocate will have
+  const count = faker.number.int({ min: 1, max: 4 });
+  // Shuffle the specialties array and take 'count' items
+  return faker.helpers.arrayElements(specialties, count);
+}
+
+/**
+ * Generate a specified number of random advocates
+ */
+export function generateAdvocates(count: number) {
+  const records = [];
+
+  for (let i = 0; i < count; i++) {
+    records.push({
+      firstName: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      city: faker.location.city(),
+      degree: faker.helpers.arrayElement(["MD", "PhD", "MSW", "PsyD", "NP"]),
+      specialties: getRandomSpecialties(),
+      yearsOfExperience: faker.number.int({ min: 1, max: 20 }),
+      // 10-digit US phone number, or any format you like:
+      phoneNumber: Number(faker.string.numeric(10)),
+    });
+  }
+
+  return records;
+}
 
 export { advocateData };
